@@ -19,6 +19,7 @@ package admin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -33,9 +34,9 @@ import (
 type Admin interface {
 	CreateTopic(ctx context.Context, opts ...OptionCreate) error
 	DeleteTopic(ctx context.Context, opts ...OptionDelete) error
-	//TODO
-	//TopicList(ctx context.Context, mq *primitive.MessageQueue) (*remote.RemotingCommand, error)
-	//GetBrokerClusterInfo(ctx context.Context) (*remote.RemotingCommand, error)
+
+	FetchAllTopicList(ctx context.Context) (*internal.TopicList, error)
+	GetBrokerClusterInfo(ctx context.Context) (*internal.ClusterInfo, error)
 	FetchPublishMessageQueues(ctx context.Context, topic string) ([]*primitive.MessageQueue, error)
 	Close() error
 }
@@ -127,21 +128,42 @@ func (a *admin) CreateTopic(ctx context.Context, opts ...OptionCreate) error {
 		Order:           cfg.Order,
 	}
 
-	cmd := remote.NewRemotingCommand(internal.ReqCreateTopic, request, nil)
-	_, err := a.cli.InvokeSync(ctx, cfg.BrokerAddr, cmd, 5*time.Second)
-	if err != nil {
-		rlog.Error("create topic error", map[string]interface{}{
-			rlog.LogKeyTopic:         cfg.Topic,
-			rlog.LogKeyBroker:        cfg.BrokerAddr,
-			rlog.LogKeyUnderlayError: err,
-		})
+	var brokerAddrs []string
+	if cfg.BrokerAddr != "" {
+		brokerAddrs = append(brokerAddrs, cfg.BrokerAddr)
 	} else {
-		rlog.Info("create topic success", map[string]interface{}{
-			rlog.LogKeyTopic:  cfg.Topic,
-			rlog.LogKeyBroker: cfg.BrokerAddr,
-		})
+		if cfg.ClusterName == "" {
+			rlog.Error("Either broker or clusterName should exist ", nil)
+			return errors.New("either broker or clusterName should exist")
+		}
+		brokerAddrs2, err := FetchMasterAddrByClusterName(ctx, a, cfg.ClusterName)
+		if err != nil {
+			rlog.Error("fail to fetch brokerAddr", nil)
+			return err
+		}
+		brokerAddrs = brokerAddrs2
+
 	}
-	return err
+	cmd := remote.NewRemotingCommand(internal.ReqCreateTopic, request, nil)
+	for _, brokerAddr := range brokerAddrs {
+
+		_, err := a.cli.InvokeSync(ctx, brokerAddr, cmd, 5*time.Second)
+		if err != nil {
+			rlog.Error("create topic error", map[string]interface{}{
+				rlog.LogKeyTopic:         cfg.Topic,
+				rlog.LogKeyBroker:        brokerAddr,
+				rlog.LogKeyUnderlayError: err,
+			})
+			return err
+		} else {
+			rlog.Info("create topic success", map[string]interface{}{
+				rlog.LogKeyTopic:  cfg.Topic,
+				rlog.LogKeyBroker: brokerAddr,
+			})
+		}
+
+	}
+	return nil
 }
 
 // DeleteTopicInBroker delete topic in broker.
@@ -170,32 +192,31 @@ func (a *admin) DeleteTopic(ctx context.Context, opts ...OptionDelete) error {
 	for _, apply := range opts {
 		apply(&cfg)
 	}
-	//delete topic in broker
-	if cfg.BrokerAddr == "" {
-		a.cli.GetNameSrv().UpdateTopicRouteInfo(cfg.Topic)
-		cfg.BrokerAddr = a.cli.GetNameSrv().FindBrokerAddrByTopic(cfg.Topic)
+
+	if cfg.ClusterName == "" {
+		rlog.Error("clusterName must exist", nil)
+		return errors.New("clusterName must exist")
 	}
 
-	if _, err := a.deleteTopicInBroker(ctx, cfg.Topic, cfg.BrokerAddr); err != nil {
-		rlog.Error("delete topic in broker error", map[string]interface{}{
-			rlog.LogKeyTopic:         cfg.Topic,
-			rlog.LogKeyBroker:        cfg.BrokerAddr,
-			rlog.LogKeyUnderlayError: err,
-		})
+	brokerAddrs, err := FetchMasterAddrByClusterName(ctx, a, cfg.ClusterName)
+	if err != nil {
+		rlog.Error("fail to fetch brokerAddr", nil)
 		return err
+	}
+
+	for _, brokerAddr := range brokerAddrs {
+		if _, err := a.deleteTopicInBroker(ctx, cfg.Topic, brokerAddr); err != nil {
+			rlog.Error("delete topic in broker error", map[string]interface{}{
+				rlog.LogKeyTopic:         cfg.Topic,
+				rlog.LogKeyBroker:        cfg.BrokerAddr,
+				rlog.LogKeyUnderlayError: err,
+			})
+			return err
+		}
 	}
 
 	//delete topic in nameserver
 	if len(cfg.NameSrvAddr) == 0 {
-		a.cli.GetNameSrv().UpdateTopicRouteInfo(cfg.Topic)
-		cfg.NameSrvAddr = a.cli.GetNameSrv().AddrList()
-		_, _, err := a.cli.GetNameSrv().UpdateTopicRouteInfo(cfg.Topic)
-		if err != nil {
-			rlog.Error("delete topic in nameserver error", map[string]interface{}{
-				rlog.LogKeyTopic:         cfg.Topic,
-				rlog.LogKeyUnderlayError: err,
-			})
-		}
 		cfg.NameSrvAddr = a.cli.GetNameSrv().AddrList()
 	}
 
@@ -226,4 +247,12 @@ func (a *admin) Close() error {
 		a.cli.Shutdown()
 	})
 	return nil
+}
+
+func (a *admin) FetchAllTopicList(ctx context.Context) (*internal.TopicList, error) {
+	return a.cli.GetNameSrv().FetchAllTopicList(ctx)
+}
+
+func (a *admin) GetBrokerClusterInfo(ctx context.Context) (*internal.ClusterInfo, error) {
+	return a.cli.GetBrokerClusterInfo(ctx)
 }

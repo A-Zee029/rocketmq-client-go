@@ -6,7 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.1.0 // indirect
 	github.com/emirpasic/gods v1.12.0
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/golang/mock v1.3.1
+	github.com/golang/mock v1.6.0
 	github.com/json-iterator/go v1.1.12
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.8.1

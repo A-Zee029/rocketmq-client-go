@@ -34,6 +34,7 @@ type TopicConfigCreate struct {
 	Topic           string
 	BrokerAddr      string
 	DefaultTopic    string
+	ClusterName     string
 	ReadQueueNums   int
 	WriteQueueNums  int
 	Perm            int
@@ -92,6 +93,12 @@ func WithOrder(Order bool) OptionCreate {
 	}
 }
 
+func WithClusterNameCreate(ClusterName string) OptionCreate {
+	return func(opts *TopicConfigCreate) {
+		opts.ClusterName = ClusterName
+	}
+}
+
 func defaultTopicConfigDelete() TopicConfigDelete {
 	opts := TopicConfigDelete{}
 	return opts
@@ -118,7 +125,7 @@ func WithBrokerAddrDelete(BrokerAddr string) OptionDelete {
 	}
 }
 
-func WithClusterName(ClusterName string) OptionDelete {
+func WithClusterNameDelete(ClusterName string) OptionDelete {
 	return func(opts *TopicConfigDelete) {
 		opts.ClusterName = ClusterName
 	}

@@ -19,17 +19,24 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
-
 	"github.com/apache/rocketmq-client-go/v2/admin"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
+	"strings"
 )
 
 func main() {
-	topic := "newOne"
-	//clusterName := "DefaultCluster"
-	nameSrvAddr := []string{"127.0.0.1:9876"}
-	brokerAddr := "127.0.0.1:10911"
+	var topic, nameServerAddrs, clusterName, brokerAddr string
+
+	flag.StringVar(&topic, "topic", "newTopic", "topic to operate")
+	flag.StringVar(&nameServerAddrs, "nameSrvAddrs", "127.0.0.1:9876", "nameServerAddress")
+	flag.StringVar(&clusterName, "clusterName", "defaultCluster", "clusterName")
+	flag.StringVar(&brokerAddr, "broker", "127.0.0.1:10911", "brokerAddress")
+
+	flag.Parse()
+
+	nameSrvAddr := strings.Split(nameServerAddrs, ";")
 
 	testAdmin, err := admin.NewAdmin(admin.WithResolver(primitive.NewPassthroughResolver(nameSrvAddr)))
 	if err != nil {
@@ -40,25 +47,44 @@ func main() {
 	err = testAdmin.CreateTopic(
 		context.Background(),
 		admin.WithTopicCreate(topic),
-		admin.WithBrokerAddrCreate(brokerAddr),
+		//admin.WithBrokerAddrCreate(brokerAddr),
+		admin.WithClusterNameCreate(clusterName),
 	)
 	if err != nil {
 		fmt.Println("Create topic error:", err.Error())
+	}
+
+	topicList, err := testAdmin.FetchAllTopicList(context.Background())
+	if err != nil {
+		fmt.Println("List topic error:", err.Error())
+	}
+	fmt.Println("topicList:")
+	for _, topicName := range topicList.TopicNameList {
+		fmt.Println(topicName)
 	}
 
 	//deletetopic
 	err = testAdmin.DeleteTopic(
 		context.Background(),
 		admin.WithTopicDelete(topic),
-		//admin.WithBrokerAddrDelete(brokerAddr),
-		//admin.WithNameSrvAddr(nameSrvAddr),
+		admin.WithClusterNameDelete(clusterName),
 	)
 	if err != nil {
 		fmt.Println("Delete topic error:", err.Error())
+	}
+
+	topicList, err = testAdmin.FetchAllTopicList(context.Background())
+	if err != nil {
+		fmt.Println("List topic error:", err.Error())
+	}
+	fmt.Println("topicList:")
+	for _, topicName := range topicList.TopicNameList {
+		fmt.Println(topicName)
 	}
 
 	err = testAdmin.Close()
 	if err != nil {
 		fmt.Printf("Shutdown admin error: %s", err.Error())
 	}
+
 }

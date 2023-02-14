@@ -19,10 +19,12 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -162,6 +164,8 @@ type RMQClient interface {
 	UpdatePublishInfo(topic string, data *TopicRouteData, changed bool)
 
 	GetNameSrv() Namesrvs
+
+	GetBrokerClusterInfo(ctx context.Context) (*ClusterInfo, error)
 }
 
 var _ RMQClient = new(rmqClient)
@@ -971,4 +975,37 @@ func brokerVIPChannel(brokerAddr string) string {
 	brokerAddrNew.WriteString(":")
 	brokerAddrNew.WriteString(strconv.Itoa(port - 2))
 	return brokerAddrNew.String()
+}
+
+func (c *rmqClient) GetBrokerClusterInfo(ctx context.Context) (*ClusterInfo, error) {
+	request := remote.NewRemotingCommand(ReqGetBrokerClusterInfo, nil, nil)
+	c.SendHeartbeatToAllBrokerWithLock()
+
+	responseCommand, _ := c.remoteClient.InvokeSync(ctx, c.GetNameSrv().AddrList()[0], request)
+
+	switch responseCommand.Code {
+	case ResSuccess:
+		if responseCommand.Body != nil {
+			re, _ := regexp.Compile("[{|,]\\d+:")
+
+			decodedBody := re.ReplaceAllFunc([]byte(responseCommand.Body), func(b []byte) []byte {
+				s := string(b)
+				index := strings.Index(s, ":")
+
+				return []byte(s[0:1] + strconv.Quote(s[1:index]) + ":")
+			})
+
+			cluster := &ClusterInfo{}
+			err := json.Unmarshal([]byte(decodedBody), &cluster)
+
+			if err != nil {
+				return nil, err
+			}
+			return cluster, err
+		}
+	default:
+		rlog.Warning("no any clusterInfo list", nil)
+	}
+	return nil, errors.New("no any response from server")
+
 }
