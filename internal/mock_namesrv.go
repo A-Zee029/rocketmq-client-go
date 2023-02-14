@@ -8,7 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	primitive "github.com/apache/rocketmq-client-go/v2/primitive"
+	primitive "github.com/A-Zee029/rocketmq-client-go/v2/primitive"
 	gomock "github.com/golang/mock/gomock"
 )
 

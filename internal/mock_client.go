@@ -9,8 +9,8 @@ import (
 	reflect "reflect"
 	time "time"
 
-	remote "github.com/apache/rocketmq-client-go/v2/internal/remote"
-	primitive "github.com/apache/rocketmq-client-go/v2/primitive"
+	remote "github.com/A-Zee029/rocketmq-client-go/v2/internal/remote"
+	primitive "github.com/A-Zee029/rocketmq-client-go/v2/primitive"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -292,6 +292,7 @@ func (mr *MockInnerConsumerMockRecorder) UpdateTopicSubscribeInfo(topic, mqs int
 type MockRMQClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockRMQClientMockRecorder
+	Namesrv  *MockNamesrvs
 }
 
 // MockRMQClientMockRecorder is the mock recorder for MockRMQClient.
@@ -354,10 +355,11 @@ func (mr *MockRMQClientMockRecorder) GetBrokerClusterInfo(ctx interface{}) *gomo
 
 // GetNameSrv mocks base method.
 func (m *MockRMQClient) GetNameSrv() Namesrvs {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetNameSrv")
-	ret0, _ := ret[0].(Namesrvs)
-	return ret0
+	return m.Namesrv
+}
+
+func (m *MockRMQClient) SetNameSrv(mockNamesrvs *MockNamesrvs) {
+	m.Namesrv = mockNamesrvs
 }
 
 // GetNameSrv indicates an expected call of GetNameSrv.

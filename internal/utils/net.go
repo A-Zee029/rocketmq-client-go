@@ -20,7 +20,7 @@ package utils
 import (
 	"bytes"
 	"fmt"
-	"github.com/apache/rocketmq-client-go/v2/errors"
+	"github.com/A-Zee029/rocketmq-client-go/v2/errors"
 	"net"
 	"strconv"
 	"time"

@@ -2,7 +2,7 @@ package admin
 
 import (
 	"context"
-	"github.com/apache/rocketmq-client-go/v2/rlog"
+	"github.com/A-Zee029/rocketmq-client-go/v2/rlog"
 )
 
 func FetchMasterAddrByClusterName(ctx context.Context, admin *admin, clusterName string) ([]string, error) {

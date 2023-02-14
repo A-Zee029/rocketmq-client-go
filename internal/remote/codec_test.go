@@ -18,7 +18,7 @@ package remote
 
 import (
 	"encoding/json"
-	"github.com/apache/rocketmq-client-go/v2/rlog"
+	"github.com/A-Zee029/rocketmq-client-go/v2/rlog"
 	"math/rand"
 	"reflect"
 	"testing"
