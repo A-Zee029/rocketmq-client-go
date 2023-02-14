@@ -24,6 +24,7 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/admin"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -54,6 +55,7 @@ func main() {
 		fmt.Println("Create topic error:", err.Error())
 	}
 
+	time.Sleep(5 * time.Second)
 	topicList, err := testAdmin.FetchAllTopicList(context.Background())
 	if err != nil {
 		fmt.Println("List topic error:", err.Error())
